@@ -2,10 +2,27 @@
   "name": "natty-fetch-plugin-offline",
   "version": "1.0.0",
   "description": "`natty-fetch` 离线插件",
-  "main": "index.js",
+  "main": "dist/natty-fetch-plugin-offline.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "webpack",
+    "dev": "node dev.js"
+  },
+  "bugs": {
+    "url": "https://github.com/macisi/natty-fetch-plugin-offline.git"
   },
   "author": "vincent.bian",
-  "license": "MIT"
+  "license": "MIT",
+  "dependencies": {
+    "object-assign": "^4.1.0",
+    "localforage": "^1.4.3",
+    "natty-fetch": "^2.1.3"
+  },
+  "devDependencies": {
+    "babel-core": "^6.17.0",
+    "babel-loader": "^6.2.5",
+    "babel-preset-es2015": "^6.16.0",
+    "uglify-loader": "^1.3.0",
+    "webpack": "^1.13.2",
+    "webpack-dev-server": "^1.16.2"
+  }
 }

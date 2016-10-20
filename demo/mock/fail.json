@@ -1,0 +1,8 @@
+{
+  "success": false,
+  "content": {
+  },
+  "error": {
+    "msg": "error message!"
+  }
+}
