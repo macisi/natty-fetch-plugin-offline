@@ -1,6 +1,6 @@
 {
   "name": "natty-fetch-plugin-offline",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "`natty-fetch` 离线插件",
   "main": "dist/natty-fetch-plugin-offline.js",
   "scripts": {
