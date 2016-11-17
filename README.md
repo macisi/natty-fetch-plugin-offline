@@ -66,6 +66,6 @@ context.create({
 
   ```js
   getEnvType() {
-    return Promise.resolve('4f);
+    return Promise.resolve('4g');
   }
   ```
