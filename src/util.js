@@ -1,33 +1,16 @@
-function isOnline() {
-  return new Promise((resolve, reject) => {
+/**
+ * 获取设备所处网络环境
+ * @return promise
+ */
+export function getNetworkType() {
+  return new Promise(resolve => {
     dd.device.connection.getNetworkType({
-      onSuccess: data => {
-        if (data.result === 'none') {
-          resolve(false);
-        } else {
-          resolve(data.result);
-        }
+      onSuccess(data) {
+        resolve(data.result);
       },
-      onFail: err => {
-        reject(err);
+      onFail(err) {
+        resolve('unknown');
       },
-    })
-  })
-}
-
-function removeStaticParam(currentParam, staticParam, filterKey) {
-    let ret = {}, needFilterKey = filterKey && Array.isArray(filterKey) && filterKey.length > 0;
-    Object.keys(currentParam).forEach((key) => {
-        if (!staticParam.hasOwnProperty(key)) {
-            if (!needFilterKey || filterKey.indexOf(key) !== -1) {
-                ret[key] = currentParam[key];
-            }
-        }
     });
-    return ret;
+  });
 }
-
-export { 
-  isOnline,
-  removeStaticParam,
-};

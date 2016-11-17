@@ -1,121 +1,182 @@
 import nattyFetch from 'natty-fetch';
-import localforage from 'localforage';
 import assign from 'object-assign';
-import { isOnline, removeStaticParam } from './util';
-const { appendQueryString, extend, param, _event } = nattyFetch._util;
-const { jsonp, ajax } = nattyFetch;
+import md5 from 'md5';
+import { getNetworkType } from './util';
+import Storage, { DRIVERS } from 'a-storage';
+const { appendQueryString, extend, param, NULL, TRUE, FALSE } = nattyFetch._util;
+const { jsonp, ajax, _event } = nattyFetch;
 
-const localStore = {};
+const pluginMethods = {
+  getStorageKey(param) {
+    return md5(JSON.stringify(param));
+  },
+  makeRequest(apiInstance, vars, config, defer) {
+    const key = this.getStorageKey(assign({}, vars.mark, apiInstance.dynamicParams));
 
-let offlinePlugin = (apiInstance) => {
-  apiInstance.config.customRequest = (vars, config, defer) => {
-
-    let storeName = apiInstance._path.replace(/\W/g, '_');
-    let store = localStore[storeName];
-    if (!store) {
-      store = localStore[storeName] = localforage.createInstance({
-        name: storeName,
+    apiInstance.offlinePlugin.isOffline()
+      .then(offline => {
+        if (offline) {
+          apiInstance.offlinePlugin.storage.getItem(key)
+            .then(content => {
+              defer.resolve(JSON.parse(content));
+            })
+            .catch(error => defer.reject(error));
+        } else {
+          if (config.jsonp) {
+            this.sendJSONP.call(apiInstance, vars, config, key, defer);
+          } else {
+            this.sendAjax.call(apiInstance, vars, config, key, defer);
+          }
+        }
       });
-    }
-    let key = param(removeStaticParam(vars.data, config.data));
+  },
+  sendAjax(vars, config, key, defer) {
+    const t = this;
+    const url = config.mock ? config.mockUrl: config.url;
 
-    const _baseConfig = {
+    t.api._requester = ajax({
       traditional: config.traditional,
-      cache: config.cache,
+      urlStamp: config.urlStamp,
       mark: vars.mark,
+      useMark: config.mark,
       log: config.log,
-      url: config.mock ? config.mockUrl: config.url,
+      url,
+      method: config.method,
       data: vars.data,
-      // methods
-      success(responese) {
-        apiInstance.processResponse(vars, config, defer, responese);
-        store.setItem(key, responese);
+      header: config.header,
+      withCredentials: config.withCredentials,
+      accept: 'json',
+      success(response) {
+        pluginMethods.processResponse.call(t, vars, config, defer, response, key);
+      },
+      error(status) {
+        // 如果跨域使用了自定义的header，且服务端没有配置允许对应的header，此处status为0，目前无法处理。
+        const error = {
+          status,
+          message: `Error(status ${status}) in request for ${vars.mark._api}(${url})`
+        };
+
+        defer.reject(error);
+        _event.fire('g.reject', [error, config]);
+        _event.fire(t.api.contextId + '.reject', [error, config]);
+      },
+      complete(/*status, xhr*/) {
+        if (vars.retryTime === undefined || vars.retryTime === config.retry) {
+          t.api.pending = FALSE;
+          t.api._requester = NULL;
+        }
+      }
+    });
+  },
+  sendJSONP(vars, config, key, defer) {
+    const t = this;
+    const url = config.mock ? config.mockUrl: config.url;
+
+    return jsonp({
+      traditional: config.traditional,
+      log: config.log,
+      mark: vars.mark,
+      useMark: config.mark,
+      url,
+      data: vars.data,
+      urlStamp: config.urlStamp,
+      flag: config.jsonpFlag,
+      callbackName: config.jsonpCallbackName,
+      success(response) {
+        pluginMethods.processResponse.call(t, vars, config, defer, response, key);
+      },
+      error() {
+        let error = {
+            message: `Not accessable JSONP in request for ${vars.mark._api}(${url})`
+        };
+
+        defer.reject(error);
+        _event.fire('g.reject', [error, config]);
+        _event.fire(t.api.contextId + '.reject', [error, config]);
       },
       complete() {
         if (vars.retryTime === undefined || vars.retryTime === config.retry) {
-            apiInstance.api.pending = false;
-            apiInstance.api._requester = null;
+          t.api.pending = FALSE;
+          t.api._requester = NULL;
         }
-      },
-    };
-    let _config;
-    if (config.jsonp) {
-      _config = assign(_baseConfig, {
-        flag: config.jsonpFlag,
-        callbackName: config.jsonpCallbackName,
-        error() {
-          let error = {
-              message: 'Not Accessable JSONP: ' + vars.mark.__api
-          };
-
-          defer.reject(error);
-          _event.fire('g.reject', [error, config]);
-          _event.fire(t.api.contextId + '.reject', [error, config]);
-        }
-      });
-    } else {
-      _config = assign(_baseConfig, {
-        header: config.header,
-        withCredentials: config.withCredentials,
-        accept: 'json',
-        error(status) {
-          let message;
-          switch (status) {
-            case 404:
-              message = 'Not Found';
-              break;
-            case 500:
-              message = 'Internal Server Error';
-              break;
-            default:
-              message = 'Unknown Server Error';
-              break;
-          }
-
-          let error = {
-            status,
-            message: message + ': ' + vars.mark.__api
-          };
-
-          defer.reject(error);
-          _event.fire('g.reject', [error, config]);
-          _event.fire(t.api.contextId + '.reject', [error, config]);
-        }
-      });
-    }
-
-    let _makeAjaxRequest = () => {
-      if (config.jsonp) {
-        jsonp(_config);
-      } else {
-        ajax(_config);
       }
-    };
-
-    isOnline().then(online => {
-      if (online) {
-        // device is online
-        _makeAjaxRequest();
-      } else {
-        // device is offline
-        store.getItem(key)
-          .then(data => {
-            apiInstance.processResponse(vars, config, defer, data)
-          });
-      }
-    }).catch(() => {
-      // cannot get network status
-      // still send request
-      _makeAjaxRequest();
     });
+  },
+  processResponse(vars, config, defer, response, key) {
+    const t = this;
+    // 调用 didFetch 钩子函数
+    config.didFetch(vars, config);
 
+    // 非标准格式数据的预处理
+    response = config.fit(response, vars);
+    // console.log(vars, config, defer, response);
+
+    if (response.success) {
+      // 数据处理
+      let content = config.process(response.content, vars);
+      
+
+      let resolveDefer = () => {
+        defer.resolve(content);
+        _event.fire('g.resolve', [content, config], config);
+        _event.fire(t.api.contextId + '.resolve', [content, config], config);
+      };
+
+      // 不再支持内置 storageUseable 配置
+      // TODO: 文档中说明
+      resolveDefer();
+      t.offlinePlugin.storage.setItem(key, JSON.stringify(content));
+    } else {
+      let error = extend({
+        message: '`success` is false, ' + t._path
+      }, response.error);
+      // NOTE response是只读的对象!!!
+      defer.reject(error);
+      _event.fire('g.reject', [error, config]);
+      _event.fire(t.api.contextId + '.reject', [error, config]);
+    }
+  }
+};
+
+const defaultPluginConfig = {
+  driver: DRIVERS.LOCALSTORAGE,
+  offlineEnv: ['2g', '3g', 'unknown', 'none'],
+  getEnvType: getNetworkType,
+};
+
+const NattyFetchPluginOffline = (config = {}) => {
+  config = assign(defaultPluginConfig, config);
+  const { driver, offlineEnv, getEnvType } = config;
+  const storage = Storage({
+    driver,
+  });
+
+  const isOffline = () => {
+    return new Promise(resolve => {
+      getEnvType()
+        .then(env => {
+          resolve(offlineEnv.indexOf(env) !== -1);
+        });
+    });
   };
+
+  const plugin = apiInstance => {
+    apiInstance.offlinePlugin = plugin;
+    let _makeVars = apiInstance.makeVars.bind(apiInstance);
+    // 重新构造内置的 makeVars 以获得动态参数
+    apiInstance.makeVars = data => {
+      apiInstance.dynamicParams = data;
+      return _makeVars(data);
+    }; 
+    apiInstance.config.customRequest = (vars, config, defer) => {
+      pluginMethods.makeRequest(apiInstance, vars, config, defer);
+    }
+  };
+
+  plugin.isOffline = isOffline;
+  plugin.storage = storage;
+
+  return plugin;
 };
 
-let plugin = {
-  offlinePlugin,
-};
-
-nattyFetch.plugin.offline = plugin;
-
-export default plugin;
+export default NattyFetchPluginOffline;

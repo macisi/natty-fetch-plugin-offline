@@ -1,9 +1,9 @@
-let config = require('./webpack.config');
-let webpackDevServer = require('webpack-dev-server');
-let webpack = require('webpack');
-let assign = require('object-assign');
+const config = require('./webpack.config');
+const webpackDevServer = require('webpack-dev-server');
+const webpack = require('webpack');
+const assign = require('object-assign');
 
-let demoConfig = assign(config, {
+const demoConfig = assign(config, {
   entry: {
     demo: './demo/demo'
   },
@@ -11,18 +11,30 @@ let demoConfig = assign(config, {
     path: __dirname + 'demo',
     filename: 'demo.js'
   },
+  module: {
+    loaders: [
+      {
+        test: /\.js$/,
+        exclude: /localforage/,
+        loader: 'babel',
+        query: {
+          presets: ['es2015'],
+        },
+      },
+    ]
+  },
   resolve: {
     alias: {
       'natty-fetch': 'natty-fetch/dist/natty-fetch',
-      'localforage': 'localforage/dist/localforage',
+      'a-storage': 'a-storage/src/index'
     },
   },
   externals: {},
   devtool: 'eval-source-map',
 });
 
-let compiler = webpack(demoConfig);
-let server = new webpackDevServer(compiler, {
+const compiler = webpack(demoConfig);
+const server = new webpackDevServer(compiler, {
   contentBase: './demo',
 });
 

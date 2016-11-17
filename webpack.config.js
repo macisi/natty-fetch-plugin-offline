@@ -11,10 +11,6 @@ module.exports = {
   module: {
     loaders: [
       {
-          test: /\.js$/,
-          loader: 'uglify',
-      },
-      {
         test: /\.js$/,
         exclude: /node_modules/,
         loader: 'babel',
@@ -25,7 +21,6 @@ module.exports = {
     ]
   },
   externals: {
-    'localforage': true,
     'natty-fetch': {
       root: 'nattyFetch',
       var: 'nattyFetch',
@@ -33,5 +28,6 @@ module.exports = {
       commonjs2: 'natty-fetch',
       amd: 'natty-fetch'
     },
+    'a-storage': true,
   },
 };
