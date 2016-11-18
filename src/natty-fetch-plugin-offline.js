@@ -171,6 +171,7 @@ const NattyFetchPluginOffline = (config = {}) => {
     apiInstance.config.customRequest = (vars, config, defer) => {
       pluginMethods.makeRequest(apiInstance, vars, config, defer);
     }
+    apiInstance.api.storage = storage;
   };
 
   plugin.isOffline = isOffline;

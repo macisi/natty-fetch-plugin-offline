@@ -69,3 +69,20 @@ context.create({
     return Promise.resolve('4g');
   }
   ```
+
+## HOW TO
+
+>> How to clear stored data in the local storage manually?
+
+When used with this plugin, this context object will add a property named `storage` which is the instance of [a-storage](https://github.com/macisi/a-storage). You can clear the storage data with it.
+```js
+const context = nattyFetch.context();
+context.create({
+  ...,
+  foo: {
+    plugin: [ offlinePlugin ]
+  }
+});
+context.foo.storage.clear();
+
+```

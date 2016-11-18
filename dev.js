@@ -15,7 +15,7 @@ const demoConfig = assign(config, {
     loaders: [
       {
         test: /\.js$/,
-        exclude: /localforage/,
+        exclude: /a-storage/,
         loader: 'babel',
         query: {
           presets: ['es2015'],
@@ -25,12 +25,11 @@ const demoConfig = assign(config, {
   },
   resolve: {
     alias: {
-      'natty-fetch': 'natty-fetch/dist/natty-fetch',
-      'a-storage': 'a-storage/src/index'
+      'natty-fetch': 'natty-fetch/dist/natty-fetch'
     },
   },
   externals: {},
-  devtool: 'eval-source-map',
+  devtool: 'source-map',
 });
 
 const compiler = webpack(demoConfig);
