@@ -10,12 +10,32 @@ const pluginMethods = {
   getStorageKey(param) {
     return md5(JSON.stringify(param));
   },
+  pollingEnvType(apiInstance, config, defer) {
+    apiInstance.pollingTimer && clearTimeout(apiInstance.pollingTimer);
+    apiInstance.pollingTimer = setTimeout(() =>{
+      apiInstance.offlinePlugin.isOffline()
+        .then(offline => {
+          if (!offline) {
+            apiInstance.reqQueue.forEach(vars => {
+              this.makeRequest(apiInstance, vars, config, defer);
+            });
+          } else {
+            this.pollingEnvType(apiInstance, config, defer);
+          }
+        });
+
+    }, apiInstance.pollingInterval);
+  },
   makeRequest(apiInstance, vars, config, defer) {
     const key = this.getStorageKey(assign({}, vars.mark, apiInstance.dynamicParams));
 
     apiInstance.offlinePlugin.isOffline()
       .then(offline => {
         if (offline) {
+          if (apiInstance.autoResendRequest) {
+            apiInstance.reqQueue.push(vars);
+            this.pollingEnvType(apiInstance, config, defer);
+          }
           apiInstance.offlinePlugin.storage.getItem(key)
             .then(content => {
               defer.resolve(JSON.parse(content));
@@ -142,11 +162,13 @@ const defaultPluginConfig = {
   driver: DRIVERS.LOCALSTORAGE,
   offlineEnv: ['2g', '3g', 'unknown', 'none'],
   getEnvType: getNetworkType,
+  autoResendRequest: false,
+  pollingInterval: 1e3 * 10,
 };
 
 const NattyFetchPluginOffline = (config = {}) => {
   config = assign(defaultPluginConfig, config);
-  const { driver, offlineEnv, getEnvType } = config;
+  const { driver, offlineEnv, getEnvType, autoResendRequest, pollingInterval } = config;
   const storage = Storage({
     driver,
   });
@@ -162,6 +184,11 @@ const NattyFetchPluginOffline = (config = {}) => {
 
   const plugin = apiInstance => {
     apiInstance.offlinePlugin = plugin;
+    apiInstance.autoResendRequest = autoResendRequest;
+    if (autoResendRequest) {
+      apiInstance.reqQueue = [];
+      apiInstance.pollingInterval = pollingInterval;
+    }
     let _makeVars = apiInstance.makeVars.bind(apiInstance);
     // 重新构造内置的 makeVars 以获得动态参数
     apiInstance.makeVars = data => {

@@ -70,6 +70,18 @@ context.create({
   }
   ```
 
+### autoResendRequest
+
+- Save the request sent in offline, and resend it when the network is online.
+- type: Boolean
+- default: false
+
+### pollingInterval
+
+- Used with `autoResendRequest` set `true`, the plugin will polling the network status at intervals.
+- type: Number
+- default: 1e3 * 10
+
 ## HOW TO
 
 >> How to clear stored data in the local storage manually?

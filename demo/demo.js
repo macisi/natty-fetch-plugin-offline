@@ -4,11 +4,20 @@ import { DRIVERS } from 'a-storage';
 
 const { _event } = nattyFetch;
 
+let resolveQueue = [
+  Promise.resolve('2g'),
+  Promise.resolve('2g'),
+  Promise.resolve('2g'),
+  Promise.resolve('2g'),
+  Promise.resolve('2g'),
+];
+
 const offlinePlugin = NattyFetchPluginOffline({
   driver: DRIVERS.SESSIONSTORAGE,
   offlineEnv: ['2g', '3g', '4g', 'unknown', 'none'],
   getEnvType() {
-    return Promise.resolve('wifi');
+    let ret = resolveQueue.pop(); 
+    return ret ? ret: Promise.resolve('wifi');
   }
 });
 
@@ -60,22 +69,6 @@ context.create({
     ]
   }
 });
-
-// context.api.successGET({
-//   test: '123'
-// }).then(res => {
-//   console.info(res);
-// });
-// context.api.successJSONP({
-//   test: '123'
-// }).then(res => {
-//   console.info(res);
-// });
-// context.api.successPOST({
-//   test: '456'
-// }).then(res => {
-//   console.info(res);
-// });
 
 const APIS = ['successGET', 'successJSONP', 'successPOST'];
 console.log(context);
